@@ -118,8 +118,8 @@ button.wallet-adapter-button-trigger {
 } */
 
 .container {
-  --uib-size: 30px;
-  /* --uib-color: black;2 */
+  --uib-size: 25px;
+  --uib-color: #4b5563; /* Gray-700 for light mode */
   --uib-speed: 1s;
   --uib-stroke: 3px;
   position: relative;
@@ -128,6 +128,12 @@ button.wallet-adapter-button-trigger {
   justify-content: flex-start;
   height: var(--uib-size);
   width: var(--uib-size);
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --uib-color: #e5e7eb; /* Gray-200 for dark mode */
+  }
 }
 
 .line {
