@@ -72,24 +72,30 @@
 //   const [hasNewMessages, setHasNewMessages] = useState(false);
 //   const [trend, setTrend] = useState<number>(0);
 //   const [totalDeposits, setTotalDeposits] = useState(0);
+//   const [initialInvestments, setInitialInvestments] = useState<number>(0); // New state
 
 //   const calculateTrend = useCallback(
-//     (invested: number | null, deposits: number) => {
-//       if (deposits > 0 && invested !== null) {
-//         const trendPercent = ((invested - deposits) / deposits) * 100;
+//     (currentInvestments: number | null, initialInvestments: number) => {
+//       if (initialInvestments > 0 && currentInvestments !== null) {
+//         const trendPercent =
+//           ((currentInvestments - initialInvestments) / initialInvestments) *
+//           100;
 //         const roundedTrend = Number(trendPercent.toFixed(1));
 //         console.log("Trend calculated:", {
-//           invested,
-//           deposits,
+//           currentInvestments,
+//           initialInvestments,
 //           trendPercent,
 //           roundedTrend,
 //         });
 //         return roundedTrend;
 //       }
-//       console.log("Trend set to 0: no deposits or invested amount null", {
-//         invested,
-//         deposits,
-//       });
+//       console.log(
+//         "Trend set to 0: no initial investments or current investments null",
+//         {
+//           currentInvestments,
+//           initialInvestments,
+//         }
+//       );
 //       return 0;
 //     },
 //     []
@@ -143,8 +149,15 @@
 //       (docSnap) => {
 //         if (docSnap.exists()) {
 //           const userData = docSnap.data();
+//           console.log("Firestore data received:", userData);
+
+//           // Set balance, pending status, and initial investments
 //           setBalance(userData.walletBalance ?? 0);
 //           setPending(userData.pendingStatus ?? null);
+//           setHasNewMessages(userData.hasNewMessage ?? false);
+//           setInitialInvestments(userData.initialInvestments ?? 0); // New field
+
+//           // Calculate invested amount
 //           const managerInvestments = userData.managerInvestments ?? {};
 //           const botInvestments = userData.botInvestments ?? {};
 //           const managerTotal = Object.values(
@@ -156,12 +169,68 @@
 //           const botTotal = Object.values(
 //             botInvestments as Record<string, { amount: number; date: string }>
 //           ).reduce((sum, val) => sum + (val.amount || 0), 0);
-//           setInvestedAmount(managerTotal + botTotal);
-//           setHasNewMessages(userData.hasNewMessage ?? false);
+//           const invested = managerTotal + botTotal;
+//           console.log("Invested amount calculated:", {
+//             managerTotal,
+//             botTotal,
+//             invested,
+//           });
+
+//           // Calculate total deposits (aligned with Transaction History)
+//           const history = userData.history ?? [];
+//           console.log("Raw history:", history);
+//           if (!Array.isArray(history) || history.length === 0) {
+//             console.log("No history data, setting totalDeposits to 0");
+//             setTotalDeposits(0);
+//             setInvestedAmount(invested);
+//             setTrend(
+//               calculateTrend(invested, userData.initialInvestments ?? 0)
+//             );
+//             return;
+//           }
+
+//           const processedHistory = history.map((tx: any) => {
+//             const rawTimestamp = tx.timestamp;
+//             const date =
+//               rawTimestamp instanceof Date
+//                 ? rawTimestamp
+//                 : rawTimestamp?.toDate?.() ?? new Date(rawTimestamp);
+//             console.log("Processing transaction:", { tx, date });
+//             return {
+//               ...tx,
+//               type: tx.type || "deposit",
+//               timestamp: date,
+//             };
+//           });
+
+//           const depositsTotal = processedHistory
+//             .filter((tx) => {
+//               const isDeposit = tx.type.toLowerCase() === "deposit";
+//               console.log("Filtered transaction:", { tx, isDeposit });
+//               return isDeposit;
+//             })
+//             .reduce((sum: number, tx) => {
+//               const amount = tx.amount || 0;
+//               console.log("Adding amount:", { amount, sum });
+//               return sum + amount;
+//             }, 0);
+//           console.log("Total deposits calculated:", depositsTotal);
+
+//           // Update states
+//           setInvestedAmount(invested);
+//           setTotalDeposits(depositsTotal);
+//           setTrend(calculateTrend(invested, userData.initialInvestments ?? 0));
+//         } else {
+//           console.log("No user data found in Firestore");
+//           setBalance(0);
+//           setInvestedAmount(0);
+//           setTotalDeposits(0);
+//           setInitialInvestments(0);
+//           setTrend(0);
 //         }
 //       },
 //       (error) => {
-//         console.error("Error listening to wallet balance:", error);
+//         console.error("Error listening to user data:", error);
 //       }
 //     );
 
@@ -169,7 +238,7 @@
 //       tradesUnsubscribe();
 //       userUnsubscribe();
 //     };
-//   }, []);
+//   }, [calculateTrend]);
 
 //   // Handle form submission to place a trade
 //   const handlePlaceTrade = async (e: React.FormEvent) => {
@@ -207,7 +276,6 @@
 //       return;
 //     }
 
-//     // Check if balance is loaded and sufficient
 //     if (balance === null) {
 //       toast({
 //         title: "Error",
@@ -321,107 +389,6 @@
 //     return !isNaN(amount) && amount > 0 && amount <= balance;
 //   };
 
-//   useEffect(() => {
-//     const user = auth.currentUser;
-//     if (!user?.uid) {
-//       console.log("No user logged in");
-//       return;
-//     }
-
-//     console.log("useEffect: Fetching data for user", user.uid);
-//     const docRef = doc(db, "users", user.uid);
-//     const unsubscribe = onSnapshot(
-//       docRef,
-//       (docSnapshot) => {
-//         if (docSnapshot.exists()) {
-//           const userData = docSnapshot.data();
-//           console.log("Firestore data received:", userData);
-
-//           // Set balance and pending status
-//           setBalance(userData.walletBalance ?? 0);
-//           setPending(userData.pendingStatus ?? false);
-//           setHasNewMessages(userData.hasNewMessage ?? false);
-
-//           // Calculate invested amount
-//           const managerInvestments = userData.managerInvestments ?? {};
-//           const botInvestments = userData.botInvestments ?? {};
-//           const managerTotal = Object.values(
-//             managerInvestments as Record<
-//               string,
-//               { amount: number; date: string }
-//             >
-//           ).reduce((sum, val) => sum + (val.amount || 0), 0);
-//           const botTotal = Object.values(
-//             botInvestments as Record<string, { amount: number; date: string }>
-//           ).reduce((sum, val) => sum + (val.amount || 0), 0);
-//           const invested = managerTotal + botTotal;
-//           console.log("Invested amount calculated:", {
-//             managerTotal,
-//             botTotal,
-//             invested,
-//           });
-
-//           // Calculate total deposits (aligned with Transaction History)
-//           const history = userData.history ?? [];
-//           console.log("Raw history:", history);
-//           if (!Array.isArray(history) || history.length === 0) {
-//             console.log("No history data, setting totalDeposits to 0");
-//             setTotalDeposits(0);
-//             setInvestedAmount(invested);
-//             setTrend(calculateTrend(invested, 0));
-//             return;
-//           }
-
-//           const processedHistory = history.map((tx: any) => {
-//             const rawTimestamp = tx.timestamp;
-//             const date =
-//               rawTimestamp instanceof Date
-//                 ? rawTimestamp
-//                 : rawTimestamp?.toDate?.() ?? new Date(rawTimestamp);
-//             console.log("Processing transaction:", { tx, date });
-//             return {
-//               ...tx,
-//               type: tx.type || "deposit", // Default to "deposit" if type missing
-//               timestamp: date,
-//             };
-//           });
-
-//           const depositsTotal = processedHistory
-//             .filter((tx) => {
-//               const isDeposit = tx.type.toLowerCase() === "deposit";
-//               console.log("Filtered transaction:", { tx, isDeposit });
-//               return isDeposit;
-//             })
-//             .reduce((sum: number, tx) => {
-//               const amount = tx.amount || 0;
-//               console.log("Adding amount:", { amount, sum });
-//               return sum + amount;
-//             }, 0);
-//           console.log("Total deposits calculated:", depositsTotal);
-
-//           // Update states
-//           setInvestedAmount(invested);
-//           setTotalDeposits(depositsTotal);
-//           setTrend(calculateTrend(invested, depositsTotal));
-//         } else {
-//           console.log("No user data found in Firestore");
-//           setBalance(0);
-//           setInvestedAmount(0);
-//           setTotalDeposits(0);
-//           setTrend(0);
-//         }
-//       },
-//       (error) => {
-//         console.error("Error fetching user data:", error);
-//       }
-//     );
-
-//     return () => {
-//       console.log("Cleaning up Firestore listener");
-//       unsubscribe();
-//     };
-//   }, [calculateTrend]);
-
 //   if (!auth.currentUser) {
 //     return <Loading />;
 //   }
@@ -439,7 +406,6 @@
 //                 <CardHeader className="relative">
 //                   <div className="sm:flex space-y-4 sm:space-y-0 sm:space-x-6">
 //                     <div className="flex items-center space-x-2">
-//                       {/* <DollarSign className="size-5 text-blue-500 dark:text-blue-300" /> */}
 //                       <div>
 //                         <CardDescription className="text-muted-foreground">
 //                           Wallet Balance
@@ -459,7 +425,6 @@
 //                       </div>
 //                     </div>
 //                     <div className="flex items-center space-x-2">
-//                       {/* <DollarSign className="size-5 text-blue-500 dark:text-blue-300" /> */}
 //                       <div>
 //                         <CardDescription className="text-muted-foreground">
 //                           Investments
@@ -478,26 +443,6 @@
 //                         </CardTitle>
 //                       </div>
 //                     </div>
-//                     {/* <div className="flex items-center space-x-2">
-//                             <ArrowDownLeft className="size-5 text-blue-500 dark:text-blue-300" />
-//                             <div>
-//                               <CardDescription className="text-muted-foreground">
-//                                 Total Deposits
-//                               </CardDescription>
-//                               <CardTitle className="@[250px]/card:text-3xl text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-300">
-//                                 {totalDeposits !== null ? (
-//                                   `$${totalDeposits.toLocaleString("en-US", {
-//                                     minimumFractionDigits: 2,
-//                                     maximumFractionDigits: 2,
-//                                   })}`
-//                                 ) : (
-//                                   <span className="font-medium text-base flex text-muted-foreground">
-//                                     Loading...
-//                                   </span>
-//                                 )}
-//                               </CardTitle>
-//                             </div>
-//                           </div> */}
 //                   </div>
 //                   <div className="absolute right-4 top-4">
 //                     <Badge
@@ -535,7 +480,9 @@
 //                       Pending Transaction...
 //                     </div>
 //                   ) : (
-//                     <div className="text-muted-foreground">on deposits</div>
+//                     <div className="text-muted-foreground">
+//                       on initial investments
+//                     </div>
 //                   )}
 //                 </CardFooter>
 //               </Card>
@@ -744,6 +691,7 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import {
@@ -809,7 +757,7 @@ export default function TradesPage() {
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [trend, setTrend] = useState<number>(0);
   const [totalDeposits, setTotalDeposits] = useState(0);
-  const [initialInvestments, setInitialInvestments] = useState<number>(0); // New state
+  const [initialInvestments, setInitialInvestments] = useState<number>(0);
 
   const calculateTrend = useCallback(
     (currentInvestments: number | null, initialInvestments: number) => {
@@ -892,7 +840,7 @@ export default function TradesPage() {
           setBalance(userData.walletBalance ?? 0);
           setPending(userData.pendingStatus ?? null);
           setHasNewMessages(userData.hasNewMessage ?? false);
-          setInitialInvestments(userData.initialInvestments ?? 0); // New field
+          setInitialInvestments(userData.initialInvestments ?? 0);
 
           // Calculate invested amount
           const managerInvestments = userData.managerInvestments ?? {};
@@ -1072,7 +1020,15 @@ export default function TradesPage() {
 
     setIsSubmitting(true);
     try {
+      const userRef = doc(db, "users", user.uid);
       const tradesRef = collection(db, "users", user.uid, "trades");
+
+      // Deduct trade amount from walletBalance
+      await updateDoc(userRef, {
+        walletBalance: balance - amount,
+      });
+
+      // Add trade to Firestore
       await addDoc(tradesRef, {
         asset: form.asset,
         type: form.type,
@@ -1082,6 +1038,7 @@ export default function TradesPage() {
         takeProfit,
         timestamp: serverTimestamp(),
       });
+
       toast({ title: "Success", description: "Trade placed successfully!" });
       console.log("Trade placed", {
         asset: form.asset,
