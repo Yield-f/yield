@@ -1,13 +1,23 @@
 // //app/auth/page.tsx
+
 // "use client";
 
-// import { useState } from "react";
+// import { useState, useEffect } from "react";
 // import { useForm } from "react-hook-form";
 // import { z } from "zod";
 // import { zodResolver } from "@hookform/resolvers/zod";
-// import { useRouter } from "next/navigation";
+// import { useRouter, useSearchParams } from "next/navigation";
 // import { createUserWithEmailAndPassword } from "firebase/auth";
-// import { doc, setDoc } from "firebase/firestore";
+// import {
+//   doc,
+//   setDoc,
+//   getDocs,
+//   updateDoc,
+//   query,
+//   where,
+//   collection,
+//   arrayUnion,
+// } from "firebase/firestore";
 // import { auth, db } from "@/lib/firebase";
 // import Spinner from "@/components/spinner";
 // import Link from "next/link";
@@ -31,6 +41,7 @@
 //     phone: z.string().min(1, "Phone number is required"),
 //     password: z.string().min(6, "Password must be at least 6 characters"),
 //     confirmPassword: z.string().min(1, "Please confirm your password"),
+//     referralCode: z.string().optional(),
 //   })
 //   .refine((data) => data.password === data.confirmPassword, {
 //     message: "Passwords do not match",
@@ -39,8 +50,16 @@
 
 // type SignUpFormData = z.infer<typeof signUpSchema>;
 
+// function generateReferralCode(email: string) {
+//   return (
+//     email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "") +
+//     Math.floor(Math.random() * 1000)
+//   );
+// }
+
 // export default function SignUpPage() {
 //   const router = useRouter();
+//   const searchParams = useSearchParams();
 //   const [loading, setLoading] = useState(false);
 
 //   const form = useForm<SignUpFormData>({
@@ -52,8 +71,16 @@
 //       phone: "",
 //       password: "",
 //       confirmPassword: "",
+//       referralCode: "",
 //     },
 //   });
+
+//   useEffect(() => {
+//     const code = searchParams.get("ref");
+//     if (code) {
+//       form.setValue("referralCode", code);
+//     }
+//   }, [searchParams, form]);
 
 //   async function onSubmit(data: SignUpFormData) {
 //     setLoading(true);
@@ -65,26 +92,40 @@
 //       );
 //       const user = userCredential.user;
 
+//       const referralCode = generateReferralCode(data.email);
+//       const referredBy = data.referralCode?.trim() || null;
+
+//       const userData = {
+//         uid: user.uid,
+//         email: data.email,
+//         firstName: data.firstName,
+//         lastName: data.lastName,
+//         phone: data.phone,
+//         walletBalance: 0,
+//         createdAt: new Date(),
+//         referralCode,
+//         referredBy,
+//         referrals: [],
+//       };
+
 //       await Promise.all([
-//         setDoc(doc(db, "users", user.uid), {
-//           uid: user.uid,
-//           email: data.email,
-//           firstName: data.firstName,
-//           lastName: data.lastName,
-//           phone: data.phone,
-//           walletBalance: 0,
-//           createdAt: new Date(),
-//         }),
-//         setDoc(doc(db, "userData", user.uid), {
-//           uid: user.uid,
-//           email: data.email,
-//           firstName: data.firstName,
-//           lastName: data.lastName,
-//           phone: data.phone,
-//           walletBalance: 0,
-//           createdAt: new Date(),
-//         }),
+//         setDoc(doc(db, "users", user.uid), userData),
+//         setDoc(doc(db, "userData", user.uid), userData),
 //       ]);
+
+//       if (referredBy) {
+//         const refQuery = query(
+//           collection(db, "users"),
+//           where("referralCode", "==", referredBy)
+//         );
+//         const refSnap = await getDocs(refQuery);
+//         if (!refSnap.empty) {
+//           const referrerDoc = refSnap.docs[0];
+//           await updateDoc(referrerDoc.ref, {
+//             referrals: arrayUnion(user.uid),
+//           });
+//         }
+//       }
 
 //       router.push("/dashboard");
 //     } catch (error: any) {
@@ -94,9 +135,9 @@
 //   }
 
 //   return (
-//     <div className="px-1 font-montserrat">
+//     <div className="px-1 font-montserrat text-sm">
 //       <div className="max-w-md mx-auto mt-20 p-6 border rounded-xl shadow">
-//         <h1 className="text-2xl font-bold mb-6 text-center">
+//         <h1 className="text-2xl font-bold mb-6 text-center font-montserrat">
 //           Create an account
 //         </h1>
 
@@ -184,6 +225,22 @@
 //                 </FormItem>
 //               )}
 //             />
+//             <FormField
+//               control={form.control}
+//               name="referralCode"
+//               render={({ field }) => (
+//                 <FormItem>
+//                   <FormLabel>Referral Code (optional)</FormLabel>
+//                   <FormControl>
+//                     <Input
+//                       placeholder="Enter referral code (if any)"
+//                       {...field}
+//                     />
+//                   </FormControl>
+//                   <FormMessage />
+//                 </FormItem>
+//               )}
+//             />
 //             <Button
 //               type="submit"
 //               className="w-full mt-2 py-2"
@@ -192,7 +249,7 @@
 //               {loading ? <Spinner /> : "Create Account"}
 //             </Button>
 
-//             <p className="font-poppins pt-1 ">
+//             <p className="font-poppins pt-1 text-sm ">
 //               Already have an account?
 //               <Link href="/auth/login" className="ml-1 text-blue-500">
 //                 Log in
@@ -454,7 +511,7 @@ export default function SignUpPage() {
               {loading ? <Spinner /> : "Create Account"}
             </Button>
 
-            <p className="font-poppins pt-1 text-sm ">
+            <p className="font-poppins pt-1 text-sm">
               Already have an account?
               <Link href="/auth/login" className="ml-1 text-blue-500">
                 Log in
