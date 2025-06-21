@@ -526,7 +526,7 @@ export function SectionCards() {
           {pending === true ? (
             <div className="text-muted-foreground">Pending Transaction...</div>
           ) : (
-            <div className="text-muted-foreground">on initial investments</div>
+            <div className="text-muted-foreground">on investments</div>
           )}
         </CardFooter>
       </Card>
