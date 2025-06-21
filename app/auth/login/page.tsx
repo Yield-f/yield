@@ -209,7 +209,7 @@ export default function LoginPage() {
             )}
           </Button>
           <p className="font-montserrat pt-1">
-            Don't have an account?
+            Don&apos;t have an account?
             <Link href="/auth" className="ml-1 text-blue-500">
               Sign up
             </Link>

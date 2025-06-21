@@ -73,10 +73,14 @@ const accordion = () => {
             className="border-slate-700"
           >
             <AccordionTrigger className="text-white">
-              <p className="text-white text-xl ">{item.question}</p>
+              <p className="text-white text-base sm:text-lg ">
+                {item.question}
+              </p>
             </AccordionTrigger>
             <AccordionContent>
-              <p className="text-slate-400 text-lg">{item.answer}</p>
+              <p className="text-slate-400 text-base sm:text-lg ">
+                {item.answer}
+              </p>
             </AccordionContent>
           </AccordionItem>
         ))}
