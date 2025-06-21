@@ -155,7 +155,7 @@ export default function ReferralsPage() {
             <CardHeader>
               <CardTitle>Referral Earnings</CardTitle>
               <CardDescription>
-                Total earnings from your referrals' initial investments.
+                Total earnings from your referrals&apos; initial investments.
               </CardDescription>
             </CardHeader>
             <CardContent>
