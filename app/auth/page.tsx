@@ -342,7 +342,7 @@ export default function SignUpPage() {
   return (
     <div className="px-1 font-montserrat text-sm">
       <div className="max-w-md mx-auto mt-20 p-6 border rounded-xl shadow">
-        <h1 className="text-2xl font-bold mb-6 text-center">
+        <h1 className="text-2xl font-bold mb-6 text-center font-montserrat">
           Create an account
         </h1>
 
