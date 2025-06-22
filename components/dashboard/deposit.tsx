@@ -342,7 +342,7 @@ export function Deposit() {
 
   // Map UI network names to Firestore document IDs
   const networkToDocId: Record<string, string> = {
-    bitcoin: "btm",
+    bitcoin: "btc",
     ethereum: "eth",
     solana: "sol",
     usdc: "usdc",
