@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 import Spinner from "@/components/spinner";
+import { News } from "@/components/news";
 
 export default function Page() {
   const loading = useAuthRedirect();
@@ -30,8 +31,8 @@ export default function Page() {
               <SectionCards />
               <div className="px-4 lg:px-6">
                 <ChartAreaInteractive />
+                <News />
               </div>
-           
             </div>
           </div>
         </div>
