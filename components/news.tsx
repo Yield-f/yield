@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import fallback from "/fallback.jpeg";
+import { HiOutlineExternalLink } from "react-icons/hi";
 
 type NewsItem = {
   url: string;
@@ -179,9 +180,9 @@ export function News() {
                   selectedArticle.content ||
                   "No additional details available."}
               </p>
-              <p className="text-xs mt-2 text-muted-foreground">
+              {/* <p className="text-xs mt-2 text-muted-foreground">
                 You will be redirected to an external site.
-              </p>
+              </p> */}
             </div>
             <DialogFooter className="mt-6 space-y-2 md:space-y-0 gap-y-3">
               <Button
@@ -198,6 +199,10 @@ export function News() {
                 Read Full Article
               </Button>
             </DialogFooter>
+            <p className="text-xs mt-0 text-muted-foreground underline flex items-center text-right w-full justify-end">
+              You will be redirected to an external site
+              <HiOutlineExternalLink className="text-lg ml-0.5" />
+            </p>
           </DialogContent>
         </Dialog>
       )}
