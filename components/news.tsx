@@ -164,7 +164,7 @@ export function News() {
             </DialogHeader>
             <div className="mt-4">
               {selectedArticle.urlToImage && (
-                <div className="relative py-5 w-full mb-4 overflow-hidden rounded-lg">
+                <div className="relative py w-full mb-4 overflow-hidden rounded-lg">
                   <img
                     src={selectedArticle.urlToImage || "/fallback.jpeg"}
                     alt={selectedArticle.title}
@@ -180,9 +180,6 @@ export function News() {
                   selectedArticle.content ||
                   "No additional details available."}
               </p>
-              {/* <p className="text-xs mt-2 text-muted-foreground">
-                You will be redirected to an external site.
-              </p> */}
             </div>
             <DialogFooter className="mt-6 space-y-2 md:space-y-0 gap-y-3">
               <Button
