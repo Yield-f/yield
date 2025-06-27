@@ -113,7 +113,7 @@ export function SiteHeader() {
             <img
               src="/logo-text.png"
               alt=""
-              className="max-w-24 object-contain  flex -ml-2 "
+              className="max-w-24 object-contain hidden sm:flex -ml-2 "
             />
             <h1 className="text-base flex">
               <Deposit />
