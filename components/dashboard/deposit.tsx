@@ -265,7 +265,7 @@ export function Deposit() {
             </div>
           )}
 
-        <DialogFooter className="py-2 space-y-2 md:space-y-0">
+        <DialogFooter className="py-2 gap-y-2">
           <DialogClose asChild>
             <Button
               variant="outline"
