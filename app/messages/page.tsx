@@ -11,9 +11,12 @@ import {
   serverTimestamp,
   doc,
   updateDoc,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { sendEmail } from "@/hooks/sendMail";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -22,7 +25,9 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/loading";
-import { MdOutlineSupportAgent } from "react-icons/md";
+import { MdOutlineSupportAgent, MdSend } from "react-icons/md";
+import Spinner from "@/components/spinner";
+import { CgSpinner } from "react-icons/cg";
 
 type Message = {
   id: string;
@@ -31,11 +36,21 @@ type Message = {
   timestamp: any;
 };
 
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export default function NotificationsPage() {
   const { currentUser: user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false); // New state for sending status
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [notificationPermission, setNotificationPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "default"
@@ -62,10 +77,19 @@ export default function NotificationsPage() {
 
     const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs
-        .filter((doc) => doc.data().userId === user.uid)
-        .map((doc) => ({ id: doc.id, ...doc.data() })) as Message[];
+        .filter(
+          (doc: QueryDocumentSnapshot<DocumentData>) =>
+            doc.data().userId === user.uid
+        )
+        .map(
+          (doc: QueryDocumentSnapshot<DocumentData>) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as Message
+        );
 
       setMessages((prevMessages) => {
         const newAdminMsgs = msgs.filter(
@@ -91,12 +115,11 @@ export default function NotificationsPage() {
 
       setLoading(false);
 
-      // ONLY clear hasNewMessage if last message is from admin
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg?.sender === "admin") {
         try {
           const userDocRef = doc(db, "users", user.uid);
-          await updateDoc(userDocRef, {
+          updateDoc(userDocRef, {
             hasNewMessage: false,
           });
         } catch (error) {
@@ -113,8 +136,9 @@ export default function NotificationsPage() {
   }, [user?.uid, isNotificationSupported]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || isSending) return; // Prevent sending if already in progress
 
+    setIsSending(true); // Show spinner
     try {
       // Set the flag BEFORE sending the message
       const userDocRef = doc(db, "users", user.uid);
@@ -122,6 +146,7 @@ export default function NotificationsPage() {
         hasNewUserMessage: true,
       });
 
+      // Add message to Firestore
       await addDoc(collection(db, "messages"), {
         userId: user.uid,
         sender: "user",
@@ -129,12 +154,38 @@ export default function NotificationsPage() {
         timestamp: serverTimestamp(),
       });
 
+      // Debug user object to check available fields
+      console.log("User object:", {
+        uid: user.uid,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName,
+      });
+
+      // Construct full name with fallback
+      const fullName =
+        user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.displayName || user.email || "User";
+
+      // Send email notification to admin
+      await sendEmail(
+        "vergoearners@gmail.com",
+        "A Client just sent a Message",
+        `<p>New message from ${escapeHtml(
+          fullName
+        )}:</p><p>Message: ${escapeHtml(newMessage)}</p>`
+      );
+
       setNewMessage("");
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     } catch (error) {
-      console.error("Failed to send message or update flag:", error);
+      console.error("Failed to send message or email:", error);
+    } finally {
+      setIsSending(false); // Hide spinner
     }
   };
 
@@ -177,8 +228,15 @@ export default function NotificationsPage() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                disabled={isSending} // Disable input while sending
               />
-              <Button onClick={sendMessage}>Send</Button>
+              <Button onClick={sendMessage} disabled={isSending}>
+                {isSending ? (
+                  <CgSpinner className="animate-spin text-lg" />
+                ) : (
+                  <MdSend className="text-lg" />
+                )}
+              </Button>
             </div>
           </Card>
         </div>
